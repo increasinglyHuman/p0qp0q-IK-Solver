@@ -1,0 +1,27 @@
+{
+  "name": "p0qp0q-ik-solver",
+  "version": "0.1.0",
+  "description": "Enhanced IK solver with swing-twist constraints and multi-axis bone support",
+  "main": "p0qp0q-IK-Solver.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Tests coming soon\" && exit 0"
+  },
+  "keywords": [
+    "inverse-kinematics",
+    "ik",
+    "three.js",
+    "animation",
+    "constraints",
+    "biomechanical"
+  ],
+  "author": "Allen Partridge <p0qp0q@poqpoq.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/increasinglyHuman/p0qp0q-IK-Solver.git"
+  },
+  "peerDependencies": {
+    "three": ">=0.160.0"
+  }
+}
