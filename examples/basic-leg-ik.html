@@ -63,9 +63,11 @@
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         import { TransformControls } from 'three/addons/controls/TransformControls.js';
 
-        // Import our custom solver (adjust path as needed)
+        // Import our custom solver
         import { P0qP0qIKSolver } from '../p0qp0q-IK-Solver.js';
-        import { ConstraintHelper, BiomechanicalConstraints } from '../ConstraintHelper.js';
+
+        // Import from utils package
+        import { ConstraintHelper, BiomechanicalData } from '../../p0qp0q-animation-utils/src/index.js';
 
         // Scene setup
         const scene = new THREE.Scene();
