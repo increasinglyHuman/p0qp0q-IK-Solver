@@ -31,12 +31,12 @@ rotationMax: new Vector3(130, 0, 0)  // Hardcoded X-axis
 
 **p0qp0q-IK-Solver**:
 ```javascript
-constraints: {
-  type: 'hinge',           // Anatomical joint type
-  flexion: 130,            // Degrees
-  extension: 0,
-  wiggle: 5,               // Secondary axis freedom
-  twistAxis: 'auto'        // Auto-detected from bone
+swingTwistConstraint: {
+  type: 'hinge',                           // Anatomical joint type
+  twistAxis: new Vector3(0, 1, 0),         // Auto-detected or specified
+  twistMin: 0,                             // Radians (extension)
+  twistMax: degToRad(130),                 // Radians (flexion)
+  swingRadius: degToRad(5)                 // Radians (wiggle room)
 }
 ```
 
@@ -75,24 +75,29 @@ import { P0qP0qIKSolver } from './p0qp0q-IK-Solver.js';
 import * as THREE from 'three';
 import { P0qP0qIKSolver } from 'p0qp0q-ik-solver';
 
-// Define IK chains with auto-detected constraints
+// Define IK chains with swing-twist constraints
 const iks = [
   {
     target: targetBoneIndex,
     effector: effectorBoneIndex,
     links: [
       {
-        index: hipBoneIndex,
-        constraints: { type: 'ball', range: 90 }
+        index: hipBoneIndex
+        // Ball joint - no constraints yet (Phase 3)
       },
       {
         index: kneeBoneIndex,
-        constraints: { type: 'hinge', flexion: 130, wiggle: 5 }
-        // twistAxis auto-detected from bone orientation!
+        swingTwistConstraint: {
+          type: 'hinge',
+          twistAxis: new THREE.Vector3(0, 1, 0),  // Auto-detected in Phase 3!
+          twistMin: 0,                             // No hyperextension
+          twistMax: THREE.MathUtils.degToRad(130), // Max flexion
+          swingRadius: THREE.MathUtils.degToRad(5) // ±5° wiggle
+        }
       },
       {
-        index: ankleBoneIndex,
-        constraints: { type: 'universal', range: 45 }
+        index: ankleBoneIndex
+        // Universal joint - Phase 3
       }
     ]
   }
@@ -107,20 +112,22 @@ ikSolver.update();
 
 ## Roadmap
 
-- [x] Fork Three.js CCDIKSolver
-- [ ] Implement swing-twist constraint system (Week 1-2)
-- [ ] Add scale-aware precision thresholds (Week 1)
-- [ ] Multi-axis bone orientation support (Week 2)
-- [ ] Octahedral bone visualization (Week 3)
+- [x] Fork Three.js CCDIKSolver ✅
+- [x] Add scale-aware precision thresholds ✅ (Phase 1 complete!)
+- [x] Implement swing-twist constraint system (INSIDE solver loop!) ✅ (Phase 2 complete!)
+- [ ] Multi-axis bone orientation support (Week 2) - Integration with BoneAxisDetector
+- [ ] Octahedral bone visualization (Week 3) - Professional Maya/Blender-style bones
 - [ ] Comprehensive test suite (Week 4)
 - [ ] Documentation and examples (Week 5)
 - [ ] npm package release (v1.0.0)
 
 ## Development Status
 
-**Current Phase:** Initial setup and architecture design
+**Current Phase:** Phase 2 Complete - Swing-Twist Constraints Integrated!
 **Target Release:** Q1 2025
-**Status:** Pre-alpha (active development)
+**Status:** Alpha (core features working, testing in progress)
+
+**Latest:** October 7, 2025 - Swing-twist constraints now applied INSIDE solver loop (correct architecture!)
 
 ## Contributing
 

@@ -47,6 +47,13 @@ const _axis = new Vector3();
 const _vector = new Vector3();
 const _matrix = new Matrix4();
 
+// Swing-twist constraint working variables
+const _swing = new Quaternion();
+const _twist = new Quaternion();
+const _twistAxis = new Vector3();
+const _rotationAxis = new Vector3();
+const _projection = new Vector3();
+
 /**
  * Enhanced IK solver with swing-twist constraints and multi-axis bone support.
  *
@@ -226,6 +233,16 @@ class P0qP0qIKSolver {
 				_quaternion.setFromAxisAngle( _axis, angle );
 				link.quaternion.multiply( _quaternion );
 
+				// Apply swing-twist constraints (if specified)
+				// This replaces/enhances the Euler constraint system below
+				const swingTwistConstraint = links[ j ].swingTwistConstraint;
+
+				if ( swingTwistConstraint !== undefined ) {
+
+					this._applySwingTwistConstraint( link, swingTwistConstraint );
+
+				}
+
 				// TODO: re-consider the limitation specification
 				if ( limitation !== undefined ) {
 
@@ -365,6 +382,134 @@ class P0qP0qIKSolver {
 		console.log( 'P0qP0qIKSolver: Detected model scale =', scale.toFixed( 4 ) );
 
 		return scale;
+
+	}
+
+	/**
+	 * Apply swing-twist constraints to a bone
+	 * Decomposes rotation into swing (perpendicular) and twist (along axis) components
+	 * Clamps each component separately, then recombines
+	 * @private
+	 * @param {Bone} bone - The bone to constrain
+	 * @param {Object} constraint - { twistAxis: Vector3, twistMin: rad, twistMax: rad, swingRadius: rad }
+	 */
+	_applySwingTwistConstraint( bone, constraint ) {
+
+		const twistAxis = constraint.twistAxis;
+
+		// Decompose quaternion into swing and twist
+		this._decomposeSwingTwist( bone.quaternion, twistAxis, _swing, _twist );
+
+		// Clamp twist rotation to limits
+		const clampedTwist = this._clampTwist( _twist, twistAxis, constraint.twistMin, constraint.twistMax );
+
+		// Clamp swing rotation to cone radius
+		const clampedSwing = this._clampSwing( _swing, constraint.swingRadius );
+
+		// Recombine: final = swing * twist
+		bone.quaternion.multiplyQuaternions( clampedSwing, clampedTwist );
+
+	}
+
+	/**
+	 * Decompose quaternion into swing and twist components
+	 * Based on research by Daniel Holden, Gino van den Bergen
+	 * @private
+	 * @param {Quaternion} q - Rotation to decompose
+	 * @param {Vector3} twistAxis - Axis to twist around (normalized)
+	 * @param {Quaternion} outSwing - Output swing component
+	 * @param {Quaternion} outTwist - Output twist component
+	 */
+	_decomposeSwingTwist( q, twistAxis, outSwing, outTwist ) {
+
+		// Get rotation axis from quaternion (x, y, z components)
+		_rotationAxis.set( q.x, q.y, q.z );
+
+		// Handle near-identity quaternions (very small rotations)
+		if ( _rotationAxis.lengthSq() < 0.0001 ) {
+
+			outSwing.set( 0, 0, 0, 1 );  // Identity
+			outTwist.set( 0, 0, 0, 1 );  // Identity
+			return;
+
+		}
+
+		// Project rotation axis onto twist axis
+		_projection.copy( _rotationAxis ).projectOnVector( twistAxis );
+
+		// Twist quaternion (rotation around twist axis only)
+		outTwist.set( _projection.x, _projection.y, _projection.z, q.w );
+		outTwist.normalize();
+
+		// Swing quaternion (remaining rotation): swing = q * twist^-1
+		const twistInv = outTwist.clone().invert();
+		outSwing.multiplyQuaternions( q, twistInv );
+		outSwing.normalize();
+
+	}
+
+	/**
+	 * Clamp twist rotation to angular limits
+	 * @private
+	 * @param {Quaternion} twist - Twist component
+	 * @param {Vector3} twistAxis - Axis of twist (normalized)
+	 * @param {number} minAngle - Minimum angle in radians
+	 * @param {number} maxAngle - Maximum angle in radians
+	 * @return {Quaternion} Clamped twist quaternion
+	 */
+	_clampTwist( twist, twistAxis, minAngle, maxAngle ) {
+
+		// Extract signed angle around twist axis
+		const twistVec = new Vector3( twist.x, twist.y, twist.z );
+		const angle = 2 * math.atan2( twistVec.dot( twistAxis ), twist.w );
+
+		// Clamp to limits
+		const clampedAngle = math.max( minAngle, math.min( maxAngle, angle ) );
+
+		// Rebuild twist quaternion from clamped angle
+		const halfAngle = clampedAngle / 2;
+		const sinHalf = math.sin( halfAngle );
+
+		return new Quaternion(
+			twistAxis.x * sinHalf,
+			twistAxis.y * sinHalf,
+			twistAxis.z * sinHalf,
+			math.cos( halfAngle )
+		);
+
+	}
+
+	/**
+	 * Clamp swing rotation to cone radius
+	 * @private
+	 * @param {Quaternion} swing - Swing component
+	 * @param {number} maxRadius - Maximum swing angle in radians
+	 * @return {Quaternion} Clamped swing quaternion
+	 */
+	_clampSwing( swing, maxRadius ) {
+
+		// Extract swing axis and angle
+		const swingAxis = new Vector3( swing.x, swing.y, swing.z );
+		const swingAngle = 2 * math.atan2( swingAxis.length(), swing.w );
+
+		// If within limits, return unchanged
+		if ( swingAngle <= maxRadius ) {
+
+			return swing.clone();
+
+		}
+
+		// Clamp to max radius
+		swingAxis.normalize();
+		const clampedHalfAngle = maxRadius / 2;
+		const sinHalf = math.sin( clampedHalfAngle );
+
+		return new Quaternion(
+			swingAxis.x * sinHalf,
+			swingAxis.y * sinHalf,
+			swingAxis.z * sinHalf,
+			math.cos( clampedHalfAngle )
+		);
 
 	}
 
