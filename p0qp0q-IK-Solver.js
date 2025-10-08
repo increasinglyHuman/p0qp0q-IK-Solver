@@ -20,6 +20,7 @@
  */
 
 import {
+	Box3,
 	BufferAttribute,
 	BufferGeometry,
 	Color,
@@ -80,6 +81,7 @@ class P0qP0qIKSolver {
 
 		this._initialQuaternions = [];
 		this._workingQuaternion = new Quaternion();
+		this._cachedModelScale = undefined; // Scale detection cache
 
 		for ( const ik of iks ) {
 
@@ -201,7 +203,10 @@ class P0qP0qIKSolver {
 				angle = math.acos( angle );
 
 				// skip if changing angle is too small to prevent vibration of bone
-				if ( angle < 1e-5 ) continue;
+				// Scale-aware precision: adjust threshold based on model size
+				const modelScale = this._cachedModelScale || this._detectModelScale();
+				const threshold = 1e-5 * Math.max( 0.001, modelScale );
+				if ( angle < threshold ) continue;
 
 				if ( ik.minAngle !== undefined && angle < ik.minAngle ) {
 
@@ -321,6 +326,45 @@ class P0qP0qIKSolver {
 			}
 
 		}
+
+	}
+
+	/**
+	 * Detect model scale for adaptive precision thresholds
+	 * Handles models from 0.01 scale (Meshy) to 100+ scale
+	 * @private
+	 * @return {number} Model scale (bounding box max dimension)
+	 */
+	_detectModelScale() {
+
+		if ( this._cachedModelScale !== undefined ) {
+
+			return this._cachedModelScale;
+
+		}
+
+		// Get bounding box of the mesh
+		const geometry = this.mesh.geometry;
+
+		if ( ! geometry.boundingBox ) {
+
+			geometry.computeBoundingBox();
+
+		}
+
+		const box = geometry.boundingBox;
+		const size = new Vector3();
+		box.getSize( size );
+
+		// Return max dimension as scale indicator
+		const scale = Math.max( size.x, size.y, size.z );
+
+		// Cache for performance (mesh scale doesn't change during animation)
+		this._cachedModelScale = scale;
+
+		console.log( 'P0qP0qIKSolver: Detected model scale =', scale.toFixed( 4 ) );
+
+		return scale;
 
 	}
 
