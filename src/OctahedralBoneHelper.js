@@ -160,8 +160,8 @@ export class OctahedralBoneHelper extends Group {
 
 		}
 
-		// Position halfway to child (octahedron extends from bone to child)
-		octahedron.position.copy( childLocalPos ).multiplyScalar( 0.5 );
+		// Position at bone origin (octahedron points toward child)
+		octahedron.position.set( 0, 0, 0 );
 
 		// Attach to bone's transform
 		bone.add( octahedron );
