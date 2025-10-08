@@ -137,12 +137,13 @@ export class OctahedralBoneHelper extends Group {
 
 		const material = new MeshBasicMaterial( {
 			color: color,
-			transparent: true,
-			opacity: 0.4,  // Lower opacity to see octahedral facets!
-			depthWrite: false
+			transparent: false,  // Solid!
+			depthTest: false,    // Always render on top!
+			side: 2              // DoubleSide
 		} );
 
 		const octahedron = new Mesh( geometry, material );
+		octahedron.renderOrder = 999;  // Render last (on top of mesh)
 
 		// Rotate octahedron to point toward child bone
 		// Default octahedron: center at origin, pointy ends at ±Y
@@ -176,6 +177,10 @@ export class OctahedralBoneHelper extends Group {
 	 */
 	_createJointSphere( bone ) {
 
+		// Joint sphere colored by joint TYPE (red=knee, blue=hip, etc.)
+		const jointType = this._detectJointType( bone );
+		const color = this._getColorForJointType( jointType );
+
 		// Get child bone to calculate uniform size
 		const childBone = this._findChildBone( bone );
 		let radius = 0.005;  // Default small for end effectors
@@ -189,13 +194,14 @@ export class OctahedralBoneHelper extends Group {
 
 		const geometry = new SphereGeometry( radius, 16, 16 );
 		const material = new MeshBasicMaterial( {
-			color: 0xcccccc,  // Light grey - neutral joint markers!
-			transparent: true,
-			opacity: 0.6,
-			depthWrite: false
+			color: color,  // Joint type color!
+			transparent: false,  // Solid!
+			depthTest: false,    // Always on top!
+			side: 2
 		} );
 
 		const sphere = new Mesh( geometry, material );
+		sphere.renderOrder = 999;  // Render on top
 
 		// Attach to bone
 		bone.add( sphere );
