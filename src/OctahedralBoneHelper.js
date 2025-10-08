@@ -25,6 +25,7 @@ import {
 	LineLoop,
 	Mesh,
 	MeshBasicMaterial,
+	MeshPhongMaterial,
 	OctahedronGeometry,
 	SphereGeometry,
 	Vector3
@@ -135,15 +136,18 @@ export class OctahedralBoneHelper extends Group {
 		const jointType = this._detectJointType( bone );
 		const color = this._getColorForJointType( jointType );
 
-		const material = new MeshBasicMaterial( {
+		const material = new MeshPhongMaterial( {
 			color: color,
-			transparent: false,  // Solid!
+			shininess: 30,       // Moderate shine
+			specular: 0x444444,  // Subtle specular highlights
+			flatShading: true,   // Show octahedral facets clearly!
+			transparent: false,
 			depthTest: false,    // Always render on top!
-			side: 2              // DoubleSide
+			side: 2
 		} );
 
 		const octahedron = new Mesh( geometry, material );
-		octahedron.renderOrder = 999;  // Render last (on top of mesh)
+		octahedron.renderOrder = 999;
 
 		// Rotate octahedron to point toward child bone
 		// Default octahedron: center at origin, pointy ends at ±Y
@@ -185,15 +189,17 @@ export class OctahedralBoneHelper extends Group {
 		const radius = 0.008;  // Fixed uniform size for 0.01 scale models
 
 		const geometry = new SphereGeometry( radius, 16, 16 );
-		const material = new MeshBasicMaterial( {
-			color: color,  // Joint type color!
-			transparent: false,  // Solid!
-			depthTest: false,    // Always on top!
+		const material = new MeshPhongMaterial( {
+			color: color,
+			shininess: 30,
+			specular: 0x444444,
+			transparent: false,
+			depthTest: false,
 			side: 2
 		} );
 
 		const sphere = new Mesh( geometry, material );
-		sphere.renderOrder = 999;  // Render on top
+		sphere.renderOrder = 999;
 
 		// Attach to bone
 		bone.add( sphere );
