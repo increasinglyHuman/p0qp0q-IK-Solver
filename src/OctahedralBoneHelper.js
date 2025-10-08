@@ -125,9 +125,9 @@ export class OctahedralBoneHelper extends Group {
 		// Default octahedron: pointy ends at ±Y
 		const geometry = new OctahedronGeometry( 1, 0 );
 
-		// Scale to bone length - wider bones for better visibility!
-		const scaleY = boneLength * 0.60;  // 60% length (doubled again!)
-		const scaleXZ = boneLength * 0.10;  // 10% width (more visible!)
+		// Scale to bone length - backing down from 60% with lower opacity for shape!
+		const scaleY = boneLength * 0.40;  // 40% length (sweet spot!)
+		const scaleXZ = boneLength * 0.06;  // 6% width
 
 		geometry.scale( scaleXZ, scaleY, scaleXZ );
 
@@ -138,7 +138,7 @@ export class OctahedralBoneHelper extends Group {
 		const material = new MeshBasicMaterial( {
 			color: color,
 			transparent: true,
-			opacity: this.options.boneOpacity,
+			opacity: 0.4,  // Lower opacity to see octahedral facets!
 			depthWrite: false
 		} );
 
