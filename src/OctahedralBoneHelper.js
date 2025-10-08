@@ -138,11 +138,12 @@ export class OctahedralBoneHelper extends Group {
 
 		const material = new MeshPhongMaterial( {
 			color: color,
-			shininess: 30,       // Moderate shine
-			specular: 0x444444,  // Subtle specular highlights
-			flatShading: true,   // Show octahedral facets clearly!
+			shininess: 30,
+			specular: 0x222222,
+			flatShading: true,   // Show octahedral facets!
 			transparent: false,
-			depthTest: false,    // Always render on top!
+			depthTest: true,     // Enable depth test for Phong!
+			depthWrite: true,
 			side: 2
 		} );
 
@@ -192,9 +193,10 @@ export class OctahedralBoneHelper extends Group {
 		const material = new MeshPhongMaterial( {
 			color: color,
 			shininess: 30,
-			specular: 0x444444,
+			specular: 0x222222,
 			transparent: false,
-			depthTest: false,
+			depthTest: true,     // Enable for Phong!
+			depthWrite: true,
 			side: 2
 		} );
 
