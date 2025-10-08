@@ -181,15 +181,15 @@ export class OctahedralBoneHelper extends Group {
 			color: color,
 			shininess: 30,
 			specular: 0x222222,
-			flatShading: true,   // Show octahedral facets!
+			flatShading: true,
 			transparent: false,
-			depthTest: true,     // Enable depth test for Phong!
-			depthWrite: true,
+			depthTest: false,    // Always on top!
+			depthWrite: false,
 			side: 2
 		} );
 
 		const octahedron = new Mesh( geometry, material );
-		octahedron.renderOrder = 999;
+		octahedron.renderOrder = 999;  // Render last
 
 		// Rotate octahedron to point toward child bone
 		// Default octahedron: center at origin, pointy ends at ±Y
@@ -236,13 +236,13 @@ export class OctahedralBoneHelper extends Group {
 			shininess: 30,
 			specular: 0x222222,
 			transparent: false,
-			depthTest: true,     // Enable for Phong!
-			depthWrite: true,
+			depthTest: false,    // Always on top!
+			depthWrite: false,
 			side: 2
 		} );
 
 		const sphere = new Mesh( geometry, material );
-		sphere.renderOrder = 999;
+		sphere.renderOrder = 999;  // Render on top
 
 		// Attach to bone
 		bone.add( sphere );
