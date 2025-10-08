@@ -233,18 +233,19 @@ class P0qP0qIKSolver {
 				_quaternion.setFromAxisAngle( _axis, angle );
 				link.quaternion.multiply( _quaternion );
 
-				// Apply swing-twist constraints (if specified)
-				// This replaces/enhances the Euler constraint system below
+				// Apply constraints: Use swing-twist if available, otherwise fall back to Euler
 				const swingTwistConstraint = links[ j ].swingTwistConstraint;
 
 				if ( swingTwistConstraint !== undefined ) {
 
+					// NEW: Swing-twist constraints (biomechanically accurate, no wraparound)
 					this._applySwingTwistConstraint( link, swingTwistConstraint );
 
-				}
+				} else {
 
-				// TODO: re-consider the limitation specification
-				if ( limitation !== undefined ) {
+					// LEGACY: Original Euler constraint system (backward compatibility)
+					// TODO: re-consider the limitation specification
+					if ( limitation !== undefined ) {
 
 					let c = link.quaternion.w;
 
@@ -264,11 +265,13 @@ class P0qP0qIKSolver {
 
 				}
 
-				if ( rotationMax !== undefined ) {
+					if ( rotationMax !== undefined ) {
 
-					link.rotation.setFromVector3( _vector.setFromEuler( link.rotation ).min( rotationMax ) );
+						link.rotation.setFromVector3( _vector.setFromEuler( link.rotation ).min( rotationMax ) );
 
-				}
+					}
+
+				} // End of Euler constraint block
 
 				link.updateMatrixWorld( true );
 

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>p0qp0q-IK-Solver - Basic Leg IK Example</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: monospace;
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 6px;
+            max-width: 400px;
+        }
+        #info h2 {
+            margin: 0 0 10px 0;
+            color: #ff00ff;
+        }
+        #info code {
+            background: #2a2a2a;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #00ff00;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h2>p0qp0q-IK-Solver</h2>
+        <p><strong>Example:</strong> Basic Leg IK with Swing-Twist Constraints</p>
+        <p><strong>Drag</strong> the red sphere to move the foot target</p>
+        <p><strong>Features:</strong></p>
+        <ul>
+            <li>✅ Scale-aware precision (0.01 to 100+ scale)</li>
+            <li>✅ Swing-twist constraints (no wraparound!)</li>
+            <li>✅ Biomechanical knee limits (0-130°)</li>
+            <li>✅ Wiggle room (±5° natural joint play)</li>
+        </ul>
+        <p><code>Knee:</code> <span id="knee-angle">-</span></p>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { TransformControls } from 'three/addons/controls/TransformControls.js';
+
+        // Import our custom solver (adjust path as needed)
+        import { P0qP0qIKSolver } from '../p0qp0q-IK-Solver.js';
+        import { ConstraintHelper, BiomechanicalConstraints } from '../ConstraintHelper.js';
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a1a);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(2, 1, 2);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Lighting
+        const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+        scene.add(ambient);
+
+        const directional = new THREE.DirectionalLight(0xffffff, 1.0);
+        directional.position.set(5, 10, 5);
+        scene.add(directional);
+
+        // Grid
+        const grid = new THREE.GridHelper(10, 10);
+        scene.add(grid);
+
+        // Controls
+        const orbitControls = new OrbitControls(camera, renderer.domElement);
+        orbitControls.target.set(0, 1, 0);
+        orbitControls.update();
+
+        // Load a model (you'll need to provide a path to a test model)
+        const loader = new GLTFLoader();
+        let ikSolver = null;
+        let skinnedMesh = null;
+        let ikTarget = null;
+        let transformControls = null;
+
+        // For demo, we'll create a simple leg manually
+        // In real usage, this would come from your loaded GLB model
+        function createSimpleLeg() {
+            // Create bones
+            const bones = [];
+
+            const hipBone = new THREE.Bone();
+            hipBone.name = 'Hip';
+            hipBone.position.set(0, 1.5, 0);
+            bones.push(hipBone);
+
+            const kneeBone = new THREE.Bone();
+            kneeBone.name = 'Knee';
+            kneeBone.position.set(0, -0.5, 0);  // Relative to hip
+            hipBone.add(kneeBone);
+            bones.push(kneeBone);
+
+            const ankleBone = new THREE.Bone();
+            ankleBone.name = 'Ankle';
+            ankleBone.position.set(0, -0.5, 0);  // Relative to knee
+            kneeBone.add(ankleBone);
+            bones.push(ankleBone);
+
+            // Create target bone (for IK)
+            const targetBone = new THREE.Bone();
+            targetBone.name = 'IK_Target';
+            targetBone.position.copy(ankleBone.position);
+            bones.push(targetBone);
+
+            // Create skeleton
+            const skeleton = new THREE.Skeleton(bones);
+
+            // Create simple geometry
+            const geometry = new THREE.CylinderGeometry(0.05, 0.05, 1.0, 8);
+            const material = new THREE.MeshStandardMaterial({ color: 0x00aaff, skinning: true });
+
+            skinnedMesh = new THREE.SkinnedMesh(geometry, material);
+            skinnedMesh.add(bones[0]);
+            skinnedMesh.bind(skeleton);
+            scene.add(skinnedMesh);
+
+            // Add skeleton helper for visualization
+            const skeletonHelper = new THREE.SkeletonHelper(skinnedMesh);
+            skeletonHelper.material.linewidth = 2;
+            scene.add(skeletonHelper);
+
+            // Create IK target sphere
+            const targetGeo = new THREE.SphereGeometry(0.08);
+            const targetMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            ikTarget = new THREE.Mesh(targetGeo, targetMat);
+
+            // Position at ankle
+            ankleBone.getWorldPosition(ikTarget.position);
+            scene.add(ikTarget);
+
+            // Make target draggable
+            transformControls = new TransformControls(camera, renderer.domElement);
+            transformControls.attach(ikTarget);
+            transformControls.setMode('translate');
+            scene.add(transformControls);
+
+            transformControls.addEventListener('dragging-changed', (event) => {
+                orbitControls.enabled = !event.value;
+            });
+
+            // Setup IK with swing-twist constraints
+            const iks = [{
+                target: 3,  // Target bone index
+                effector: 2, // Ankle bone index
+                iteration: 10,
+                links: [
+                    {
+                        index: 1,  // Knee bone
+                        swingTwistConstraint: {
+                            type: 'hinge',
+                            // Y-axis for this simple demo (bone points down Y)
+                            twistAxis: new THREE.Vector3(0, 1, 0),
+                            twistMin: 0,  // No hyperextension
+                            twistMax: THREE.MathUtils.degToRad(130),  // Max flexion
+                            swingRadius: THREE.MathUtils.degToRad(5)  // ±5° wiggle
+                        }
+                    },
+                    {
+                        index: 0  // Hip bone (unconstrained for demo)
+                    }
+                ]
+            }];
+
+            // Create IK solver
+            ikSolver = new P0qP0qIKSolver(skinnedMesh, iks);
+
+            console.log('✅ IK solver created with swing-twist constraints');
+            console.log('📏 Model scale:', ikSolver._detectModelScale());
+        }
+
+        // Create the demo scene
+        createSimpleLeg();
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (ikSolver && ikTarget) {
+                // Update target bone position
+                const targetBone = skinnedMesh.skeleton.bones[3];
+                targetBone.position.copy(ikTarget.position);
+                targetBone.updateMatrixWorld(true);
+
+                // Solve IK
+                ikSolver.update();
+
+                // Display knee angle
+                const kneeBone = skinnedMesh.skeleton.bones[1];
+                const euler = new THREE.Euler().setFromQuaternion(kneeBone.quaternion);
+                const kneeAngleDeg = THREE.MathUtils.radToDeg(euler.y);
+                document.getElementById('knee-angle').textContent =
+                    `${kneeAngleDeg.toFixed(1)}° (limit: 0-130°)`;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+    </script>
+</body>
+</html>
