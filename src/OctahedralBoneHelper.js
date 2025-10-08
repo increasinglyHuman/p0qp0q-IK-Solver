@@ -119,11 +119,11 @@ export class OctahedralBoneHelper extends Group {
 		// Blender bone proportions:
 		// - Short tet: 20% of length (up to sphere)
 		// - Long tet: 80% of length (down to child)
-		// - Base width: ~10% of bone length
-		const baseWidth = boneLength * 0.10;
+		// - NARROW like actual bones!
+		const baseWidth = boneLength * 0.03;    // 3% width - thin stick!
 		const shortHeight = boneLength * 0.20;  // 20% up
 		const longHeight = boneLength * 0.80;   // 80% down
-		const tipWidth = boneLength * 0.02;     // Narrow tip
+		const tipWidth = boneLength * 0.01;     // Very narrow tip
 
 		const positions = new Float32Array( [
 			// Base square (shared by both tetrahedrons)
