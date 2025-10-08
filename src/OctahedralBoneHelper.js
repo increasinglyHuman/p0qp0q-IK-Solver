@@ -252,24 +252,26 @@ export class OctahedralBoneHelper extends Group {
 
 		const name = bone.name.toLowerCase();
 
-		// Hinge joints
-		if ( name.match( /knee|shin|lowerleg|calf|elbow|lowerarm|forearm/i ) ) {
+		// Hinge joints (CHECK FIRST - most specific!)
+		// Include "leg" but NOT "upleg" or "upperleg"
+		if ( name.match( /knee|shin|calf|elbow|forearm|lowerarm/i ) ||
+		     ( name.match( /leg/i ) && ! name.match( /up|upper|thigh/i ) ) ) {
 
 			return 'hinge';
 
 		}
 
-		// Ball joints
-		if ( name.match( /hip|thigh|upperleg|shoulder|upperarm|neck|head/i ) ) {
+		// Universal joints (CHECK BEFORE BALL!)
+		if ( name.match( /ankle|foot|toe|wrist|hand|finger|thumb/i ) ) {
 
-			return 'ball';
+			return 'universal';
 
 		}
 
-		// Universal joints
-		if ( name.match( /ankle|foot|wrist|hand/i ) ) {
+		// Ball joints (CHECK LAST - most general!)
+		if ( name.match( /hip|thigh|upperleg|upleg|shoulder|upperarm|clavicle|neck|head|spine|chest/i ) ) {
 
-			return 'universal';
+			return 'ball';
 
 		}
 
