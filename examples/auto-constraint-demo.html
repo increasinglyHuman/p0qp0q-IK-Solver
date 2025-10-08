@@ -125,15 +125,20 @@
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         import { TransformControls } from 'three/addons/controls/TransformControls.js';
 
-        // Import our packages (using relative paths for now)
+        // Import our packages
+        // From: /home/p0qp0q/blackbox/p0qp0q-IK-Solver/examples/auto-constraint-demo.html
+        // To solver: ../p0qp0q-IK-Solver.js
+        // To utils: ../../p0qp0q-animation-utils/src/index.js
+
         import { P0qP0qIKSolver } from '../p0qp0q-IK-Solver.js';
+        import { AutoConstraintBuilder } from '../src/AutoConstraintBuilder.js';
+
         import {
             BoneAxisDetector,
             BoneMapper,
             ConstraintHelper,
             BiomechanicalData
-        } from '../../p0qp0q-animation-utils/src/index.js';
-        import { AutoConstraintBuilder } from '../src/AutoConstraintBuilder.js';
+        } from '../../../p0qp0q-animation-utils/src/index.js';
 
         console.log('🚀 p0qp0q Universal IK System - Auto-Constraint Demo');
         console.log('======================================================');
