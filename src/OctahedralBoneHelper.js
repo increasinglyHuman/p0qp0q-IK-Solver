@@ -110,6 +110,54 @@ export class OctahedralBoneHelper extends Group {
 	}
 
 	/**
+	 * Create tapered octahedron geometry (Blender-style)
+	 * Wide at base (joint), narrow at tip (child direction)
+	 * @private
+	 */
+	_createTaperedOctahedron( boneLength ) {
+
+		// Create custom geometry - pyramid/tetrahedron shape
+		// Base vertices (wide square at joint)
+		const baseWidth = boneLength * 0.10;  // 10% width at base
+		const tipWidth = boneLength * 0.02;   // 2% width at tip
+		const height = boneLength * 0.50;     // 50% of bone length
+
+		const positions = new Float32Array( [
+			// Base square (at joint)
+			- baseWidth, 0, - baseWidth,  // 0
+			baseWidth, 0, - baseWidth,    // 1
+			baseWidth, 0, baseWidth,      // 2
+			- baseWidth, 0, baseWidth,    // 3
+
+			// Tip square (toward child)
+			- tipWidth, height, - tipWidth,  // 4
+			tipWidth, height, - tipWidth,    // 5
+			tipWidth, height, tipWidth,      // 6
+			- tipWidth, height, tipWidth     // 7
+		] );
+
+		const indices = [
+			// Base
+			0, 1, 2,  0, 2, 3,
+			// Sides (connecting base to tip)
+			0, 1, 5,  0, 5, 4,  // Front
+			1, 2, 6,  1, 6, 5,  // Right
+			2, 3, 7,  2, 7, 6,  // Back
+			3, 0, 4,  3, 4, 7,  // Left
+			// Top
+			4, 5, 6,  4, 6, 7
+		];
+
+		const geometry = new BufferGeometry();
+		geometry.setAttribute( 'position', new Float32BufferAttribute( positions, 3 ) );
+		geometry.setIndex( indices );
+		geometry.computeVertexNormals();  // Important for Phong shading!
+
+		return geometry;
+
+	}
+
+	/**
 	 * Create octahedral bone geometry pointing from bone to child
 	 * @private
 	 */
@@ -122,15 +170,8 @@ export class OctahedralBoneHelper extends Group {
 		const boneLength = childLocalPos.length();
 		const boneDirection = childLocalPos.clone().normalize();
 
-		// Create octahedron geometry
-		// Default octahedron: pointy ends at ±Y
-		const geometry = new OctahedronGeometry( 1, 0 );
-
-		// Scale to bone length - backing down from 60% with lower opacity for shape!
-		const scaleY = boneLength * 0.40;  // 40% length (sweet spot!)
-		const scaleXZ = boneLength * 0.06;  // 6% width
-
-		geometry.scale( scaleXZ, scaleY, scaleXZ );
+		// Create TAPERED octahedron (like Blender!) - wide at base, narrow at tip
+		const geometry = this._createTaperedOctahedron( boneLength );
 
 		// Determine color by joint type
 		const jointType = this._detectJointType( bone );
