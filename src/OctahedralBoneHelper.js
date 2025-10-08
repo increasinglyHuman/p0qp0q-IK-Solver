@@ -238,8 +238,32 @@ export class OctahedralBoneHelper extends Group {
 		const jointType = this._detectJointType( bone );
 		const color = this._getColorForJointType( jointType );
 
-		// UNIFORM SIZE for all joints - like elbow reference!
-		const radius = 0.008;  // Fixed uniform size for 0.01 scale models
+		// Get child bone to calculate proper size
+		const childBone = this._findChildBone( bone );
+
+		if ( ! childBone ) {
+
+			// End effector - small sphere
+			const radius = 0.005;
+			const geometry = new SphereGeometry( radius, 16, 16 );
+			const material = new MeshPhongMaterial( {
+				color: color,
+				shininess: 30,
+				specular: 0x222222,
+				depthTest: false,
+				depthWrite: false
+			} );
+			const sphere = new Mesh( geometry, material );
+			sphere.renderOrder = 999;
+			bone.add( sphere );
+			return sphere;
+
+		}
+
+		// Calculate size relative to bone base width (10% of bone length)
+		const boneLength = childBone.position.length();
+		const baseWidth = boneLength * 0.10;
+		const radius = baseWidth * 0.85;  // 85% of base width (10-15% smaller as you said!)
 
 		const geometry = new SphereGeometry( radius, 16, 16 );
 		const material = new MeshPhongMaterial( {
@@ -247,13 +271,17 @@ export class OctahedralBoneHelper extends Group {
 			shininess: 30,
 			specular: 0x222222,
 			transparent: false,
-			depthTest: false,    // Always on top!
+			depthTest: false,
 			depthWrite: false,
 			side: 2
 		} );
 
 		const sphere = new Mesh( geometry, material );
-		sphere.renderOrder = 999;  // Render on top
+		sphere.renderOrder = 999;
+
+		// Position sphere at TOP of short tetrahedron (20% up from base)
+		const shortHeight = boneLength * 0.20;
+		sphere.position.set( 0, shortHeight, 0 );
 
 		// Attach to bone
 		bone.add( sphere );
