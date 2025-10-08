@@ -97,12 +97,12 @@ export class OctahedralBoneHelper extends Group {
 			// Create directional octahedron
 			const octahedron = this._createOctahedralBone( bone, childBone );
 			this.boneObjects.push( octahedron );
-			this.add( octahedron );
+			// DON'T add to helper group - already added to bone in _createOctahedralBone!
 
 			// Create joint sphere
 			const jointSphere = this._createJointSphere( bone );
 			this.jointSpheres.push( jointSphere );
-			this.add( jointSphere );
+			// DON'T add to helper group - already added to bone in _createJointSphere!
 
 		}
 
