@@ -122,13 +122,13 @@ export class OctahedralBoneHelper extends Group {
 		const boneDirection = childLocalPos.clone().normalize();
 
 		// Create octahedron geometry
-		// Base octahedron points along Y-axis, we'll rotate it
+		// Default octahedron: pointy ends at ±Y
 		const geometry = new OctahedronGeometry( 1, 0 );
 
-		// Scale: length along bone direction, width/depth perpendicular
-		// Meshy 0.01 scale - MICROSCOPIC!
-		const scaleY = boneLength * 0.01;  // 1% of bone length
-		const scaleXZ = boneLength * 0.001;  // 0.1% width
+		// Scale to bone length - octahedron extends from origin to child
+		// Width much smaller than length (like Maya bones)
+		const scaleY = boneLength * 0.5;  // Octahedron extends 0 to boneLength (half on each side of center)
+		const scaleXZ = boneLength * 0.05;  // Width = 5% of length
 
 		geometry.scale( scaleXZ, scaleY, scaleXZ );
 
@@ -146,8 +146,8 @@ export class OctahedralBoneHelper extends Group {
 		const octahedron = new Mesh( geometry, material );
 
 		// Rotate octahedron to point toward child bone
-		// Default octahedron points along +Y
-		// Rotate to point along boneDirection
+		// Default octahedron: center at origin, pointy ends at ±Y
+		// Want: base (flat end) at origin, pointy end toward child
 		const targetDir = boneDirection.clone();
 		const currentDir = new Vector3( 0, 1, 0 );
 
@@ -160,8 +160,9 @@ export class OctahedralBoneHelper extends Group {
 
 		}
 
-		// Position at bone origin (octahedron points toward child)
-		octahedron.position.set( 0, 0, 0 );
+		// Position octahedron so it extends from bone origin to child position
+		// Octahedron center is at 50% of its height, so shift it up by 50%
+		octahedron.position.copy( childLocalPos ).multiplyScalar( 0.5 );
 
 		// Attach to bone's transform
 		bone.add( octahedron );
