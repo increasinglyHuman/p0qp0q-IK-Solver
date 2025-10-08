@@ -181,16 +181,8 @@ export class OctahedralBoneHelper extends Group {
 		const jointType = this._detectJointType( bone );
 		const color = this._getColorForJointType( jointType );
 
-		// Get child bone to calculate uniform size
-		const childBone = this._findChildBone( bone );
-		let radius = 0.005;  // Default small for end effectors
-
-		if ( childBone ) {
-
-			const boneLength = childBone.position.length();
-			radius = boneLength * 0.12;  // 12% of bone length - uniform!
-
-		}
+		// UNIFORM SIZE for all joints - like elbow reference!
+		const radius = 0.008;  // Fixed uniform size for 0.01 scale models
 
 		const geometry = new SphereGeometry( radius, 16, 16 );
 		const material = new MeshBasicMaterial( {
