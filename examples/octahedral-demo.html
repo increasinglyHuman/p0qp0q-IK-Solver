@@ -163,10 +163,10 @@
         let wireHelper = null;
         let autoRotate = false;
 
-        // Load model
+        // Load model (use working Meshy model from Animator)
         const loader = new GLTFLoader();
         loader.load(
-            './models/test-character.glb',
+            '../../blackBoxIKAnimator/public/models/NewestModels/Meshy_Merged_Animations(18).glb',
             (gltf) => {
                 console.log('✅ Model loaded');
 
