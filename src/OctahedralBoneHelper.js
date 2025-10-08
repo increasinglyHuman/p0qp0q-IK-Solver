@@ -126,9 +126,9 @@ export class OctahedralBoneHelper extends Group {
 		const geometry = new OctahedronGeometry( 1, 0 );
 
 		// Scale: length along bone direction, width/depth perpendicular
-		// Meshy models are 0.01 scale - need TINY bones!
-		const scaleY = boneLength * this.options.boneScale * 0.3;  // 30% of bone length
-		const scaleXZ = boneLength * 0.03;  // 3% width - very thin!
+		// Meshy 0.01 scale - MICROSCOPIC!
+		const scaleY = boneLength * 0.01;  // 1% of bone length
+		const scaleXZ = boneLength * 0.001;  // 0.1% width
 
 		geometry.scale( scaleXZ, scaleY, scaleXZ );
 
