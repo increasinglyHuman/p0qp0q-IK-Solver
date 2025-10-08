@@ -110,48 +110,59 @@ export class OctahedralBoneHelper extends Group {
 	}
 
 	/**
-	 * Create tapered octahedron geometry (Blender-style)
-	 * Wide at base (joint), narrow at tip (child direction)
+	 * Create Blender-style bone geometry
+	 * Two tetrahedrons: 20% up to sphere, 80% down to child
 	 * @private
 	 */
 	_createTaperedOctahedron( boneLength ) {
 
-		// Create custom geometry - pyramid/tetrahedron shape
-		// Base vertices (wide square at joint)
-		const baseWidth = boneLength * 0.10;  // 10% width at base
-		const tipWidth = boneLength * 0.02;   // 2% width at tip
-		const height = boneLength * 0.50;     // 50% of bone length
+		// Blender bone proportions:
+		// - Short tet: 20% of length (up to sphere)
+		// - Long tet: 80% of length (down to child)
+		// - Base width: ~10% of bone length
+		const baseWidth = boneLength * 0.10;
+		const shortHeight = boneLength * 0.20;  // 20% up
+		const longHeight = boneLength * 0.80;   // 80% down
+		const tipWidth = boneLength * 0.02;     // Narrow tip
 
 		const positions = new Float32Array( [
-			// Base square (at joint)
+			// Base square (shared by both tetrahedrons)
 			- baseWidth, 0, - baseWidth,  // 0
 			baseWidth, 0, - baseWidth,    // 1
 			baseWidth, 0, baseWidth,      // 2
 			- baseWidth, 0, baseWidth,    // 3
 
-			// Tip square (toward child)
-			- tipWidth, height, - tipWidth,  // 4
-			tipWidth, height, - tipWidth,    // 5
-			tipWidth, height, tipWidth,      // 6
-			- tipWidth, height, tipWidth     // 7
+			// Top point (short tet - where sphere goes)
+			0, shortHeight, 0,            // 4
+
+			// Bottom tip (long tet - toward child)
+			- tipWidth, - longHeight, - tipWidth,  // 5
+			tipWidth, - longHeight, - tipWidth,    // 6
+			tipWidth, - longHeight, tipWidth,      // 7
+			- tipWidth, - longHeight, tipWidth     // 8
 		] );
 
 		const indices = [
-			// Base
-			0, 1, 2,  0, 2, 3,
-			// Sides (connecting base to tip)
-			0, 1, 5,  0, 5, 4,  // Front
-			1, 2, 6,  1, 6, 5,  // Right
-			2, 3, 7,  2, 7, 6,  // Back
-			3, 0, 4,  3, 4, 7,  // Left
-			// Top
-			4, 5, 6,  4, 6, 7
+			// Short tetrahedron (UP to sphere) - 20%
+			0, 1, 4,  // Front face
+			1, 2, 4,  // Right face
+			2, 3, 4,  // Back face
+			3, 0, 4,  // Left face
+
+			// Long tetrahedron (DOWN to child) - 80%
+			// Sides
+			0, 1, 6,  0, 6, 5,  // Front
+			1, 2, 7,  1, 7, 6,  // Right
+			2, 3, 8,  2, 8, 7,  // Back
+			3, 0, 5,  3, 5, 8,  // Left
+			// Bottom
+			5, 6, 7,  5, 7, 8
 		];
 
 		const geometry = new BufferGeometry();
 		geometry.setAttribute( 'position', new Float32BufferAttribute( positions, 3 ) );
 		geometry.setIndex( indices );
-		geometry.computeVertexNormals();  // Important for Phong shading!
+		geometry.computeVertexNormals();
 
 		return geometry;
 
