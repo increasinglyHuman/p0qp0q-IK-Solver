@@ -291,24 +291,35 @@ export class OctahedralBoneHelper extends Group {
 	 */
 	_getJointRadius( bone ) {
 
+		// Get child bone to measure bone length (for scale-relative sizing)
+		const childBone = this._findChildBone( bone );
+		let baseRadius = 0.01;  // Default tiny for 0.01 scale models
+
+		if ( childBone ) {
+
+			const boneLength = childBone.position.length();
+			baseRadius = boneLength * 0.15;  // 15% of bone length
+
+		}
+
 		const name = bone.name.toLowerCase();
 
 		// Large joints
 		if ( name.match( /hip|shoulder|spine|neck/i ) ) {
 
-			return this.options.jointRadius * 1.5;
+			return baseRadius * 1.5;
 
 		}
 
 		// Medium joints
 		if ( name.match( /knee|elbow/i ) ) {
 
-			return this.options.jointRadius * 1.2;
+			return baseRadius * 1.2;
 
 		}
 
 		// Small joints
-		return this.options.jointRadius;
+		return baseRadius;
 
 	}
 
