@@ -176,17 +176,22 @@ export class OctahedralBoneHelper extends Group {
 	 */
 	_createJointSphere( bone ) {
 
-		const jointType = this._detectJointType( bone );
-		const color = this._getColorForJointType( jointType );
+		// Get child bone to calculate uniform size
+		const childBone = this._findChildBone( bone );
+		let radius = 0.005;  // Default small for end effectors
 
-		// Sphere size based on bone importance
-		const radius = this._getJointRadius( bone );
+		if ( childBone ) {
+
+			const boneLength = childBone.position.length();
+			radius = boneLength * 0.12;  // 12% of bone length - uniform!
+
+		}
 
 		const geometry = new SphereGeometry( radius, 16, 16 );
 		const material = new MeshBasicMaterial( {
-			color: color,
+			color: 0xcccccc,  // Light grey - neutral joint markers!
 			transparent: true,
-			opacity: 0.8,
+			opacity: 0.6,
 			depthWrite: false
 		} );
 
