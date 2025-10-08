@@ -125,10 +125,9 @@ export class OctahedralBoneHelper extends Group {
 		// Default octahedron: pointy ends at ±Y
 		const geometry = new OctahedronGeometry( 1, 0 );
 
-		// Scale to bone length - octahedron extends from origin to child
-		// Width much smaller than length (like Maya bones)
-		const scaleY = boneLength * 0.5;  // Octahedron extends 0 to boneLength (half on each side of center)
-		const scaleXZ = boneLength * 0.05;  // Width = 5% of length
+		// Scale to bone length - KEEP TINY for 0.01 Meshy models!
+		const scaleY = boneLength * 0.01;  // 1% length
+		const scaleXZ = boneLength * 0.001;  // 0.1% width
 
 		geometry.scale( scaleXZ, scaleY, scaleXZ );
 
