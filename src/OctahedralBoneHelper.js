@@ -12,7 +12,7 @@
  * Licensed under the MIT License
  *
  * @author Allen Partridge <p0qp0q@poqpoq.com>
- * @version 1.0.0
+ * @version 1.0.1 - Fixed scaling math for seamless bone connections
  */
 
 import {
@@ -30,6 +30,7 @@ import {
 	SphereGeometry,
 	Vector3
 } from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 /**
  * OctahedralBoneHelper - Professional bone display
@@ -65,6 +66,12 @@ export class OctahedralBoneHelper extends Group {
 			boneScale: options.boneScale || 1.0,
 			showConstraintArcs: options.showConstraintArcs !== false,
 			constraintArcColor: options.constraintArcColor || 0xffaa00,
+			modelPath: options.modelPath || '../models/octahedralBoneZup.glb',
+			
+			// CRITICAL: Actual geometry measurements from Blender model (in meters)
+			octahedronTipDistance: options.octahedronTipDistance || 2.30045, // Distance from origin to tip (meters)
+			sphereTemplateRadius: options.sphereTemplateRadius || 0.238,     // Template sphere radius (meters)
+			
 			...options
 		};
 
@@ -72,7 +79,89 @@ export class OctahedralBoneHelper extends Group {
 		this.jointSpheres = [];
 		this.constraintArcs = [];
 
-		this._createBones();
+		// Template geometries (loaded from GLB)
+		this.boneTemplate = null;
+		this.sphereTemplate = null;
+		this.isReady = false;
+
+		// Load the GLB model, then create bones
+		this._loadBoneModel().then( () => {
+
+			this._createBones();
+			this.isReady = true;
+
+		} );
+
+	}
+
+	/**
+	 * Load the octahedral bone GLB model
+	 * @private
+	 */
+	async _loadBoneModel() {
+
+		const loader = new GLTFLoader();
+
+		return new Promise( ( resolve, reject ) => {
+
+			loader.load(
+				this.options.modelPath,
+				( gltf ) => {
+
+					// Extract the bone and sphere meshes from the GLB
+					gltf.scene.traverse( ( child ) => {
+
+						if ( child.isMesh ) {
+
+							if ( child.name === 'OctahedralBone' ) {
+
+								this.boneTemplate = child.geometry.clone();
+
+							} else if ( child.name === 'JointSphere' ) {
+
+								this.sphereTemplate = child.geometry.clone();
+
+							}
+
+						}
+
+					} );
+
+					if ( ! this.boneTemplate || ! this.sphereTemplate ) {
+
+						console.warn( 'OctahedralBoneHelper: Could not find OctahedralBone or JointSphere in GLB, using procedural geometry' );
+						this._createFallbackGeometry();
+
+					}
+
+					resolve();
+
+				},
+				undefined,
+				( error ) => {
+
+					console.error( 'OctahedralBoneHelper: Error loading bone model, using procedural geometry', error );
+					this._createFallbackGeometry();
+					resolve(); // Resolve anyway with fallback
+
+				}
+			);
+
+		} );
+
+	}
+
+	/**
+	 * Create fallback procedural geometry if GLB fails to load
+	 * @private
+	 */
+	_createFallbackGeometry() {
+
+		// Use the existing _createTaperedOctahedron method
+		this.boneTemplate = this._createTaperedOctahedron( this.options.octahedronTipDistance );
+
+		// Simple sphere for joint
+		this.sphereTemplate = new SphereGeometry( this.options.sphereTemplateRadius, 16, 16 );
 
 	}
 
@@ -85,9 +174,9 @@ export class OctahedralBoneHelper extends Group {
 		for ( let i = 0; i < this.bones.length; i ++ ) {
 
 			const bone = this.bones[ i ];
-			const childBone = this._findChildBone( bone );
+			const childBones = this._findAllChildBones( bone );
 
-			if ( ! childBone ) {
+			if ( childBones.length === 0 ) {
 
 				// End effector - create small sphere
 				this._createEndEffectorSphere( bone );
@@ -95,22 +184,25 @@ export class OctahedralBoneHelper extends Group {
 
 			}
 
-			// Create directional octahedron
-			const octahedron = this._createOctahedralBone( bone, childBone );
-			this.boneObjects.push( octahedron );
-			// DON'T add to helper group - already added to bone in _createOctahedralBone!
+			// Create a bone visualization for EACH child (handles pelvis, clavicles, etc.)
+			for ( const childBone of childBones ) {
 
-			// Create joint sphere
-			const jointSphere = this._createJointSphere( bone );
-			this.jointSpheres.push( jointSphere );
-			// DON'T add to helper group - already added to bone in _createJointSphere!
+				// Create directional octahedron
+				const octahedron = this._createOctahedralBone( bone, childBone );
+				this.boneObjects.push( octahedron );
+
+				// Create joint spheres (head and tail)
+				const jointSphere = this._createJointSphere( bone, childBone );
+				this.jointSpheres.push( jointSphere );
+
+			}
 
 		}
 
 	}
 
 	/**
-	 * Create Blender-style bone geometry
+	 * Create Blender-style bone geometry (FALLBACK ONLY)
 	 * Two tetrahedrons: 20% up to sphere, 80% down to child
 	 * @private
 	 */
@@ -170,19 +262,25 @@ export class OctahedralBoneHelper extends Group {
 
 	/**
 	 * Create octahedral bone geometry pointing from bone to child
+	 * FIXED: Proper scaling so tip reaches child position exactly
 	 * @private
 	 */
 	_createOctahedralBone( bone, childBone ) {
 
-		const group = new Group();
+		if ( ! this.boneTemplate ) {
+
+			console.warn( 'OctahedralBoneHelper: Bone template not loaded yet' );
+			return null;
+
+		}
 
 		// Get bone direction and length
 		const childLocalPos = childBone.position.clone();
 		const boneLength = childLocalPos.length();
 		const boneDirection = childLocalPos.clone().normalize();
 
-		// Create TAPERED octahedron (like Blender!) - wide at base, narrow at tip
-		const geometry = this._createTaperedOctahedron( boneLength );
+		// Clone the template geometry
+		const geometry = this.boneTemplate.clone();
 
 		// Determine color by joint type
 		const jointType = this._detectJointType( bone );
@@ -202,9 +300,14 @@ export class OctahedralBoneHelper extends Group {
 		const octahedron = new Mesh( geometry, material );
 		octahedron.renderOrder = 999;  // Render last
 
+		// FIX: Scale bone to make tip reach child exactly
+		// Template has tip at distance = octahedronTipDistance from origin
+		// We need tip to reach boneLength distance
+		const scaleFactor = boneLength / this.options.octahedronTipDistance;
+		octahedron.scale.set( scaleFactor, scaleFactor, scaleFactor );
+
 		// Rotate octahedron to point toward child bone
-		// Default octahedron: center at origin, pointy ends at ±Y
-		// Want: base (flat end) at origin, pointy end toward child
+		// Template is aligned to +Y axis from Blender
 		const targetDir = boneDirection.clone();
 		const currentDir = new Vector3( 0, 1, 0 );
 
@@ -217,11 +320,7 @@ export class OctahedralBoneHelper extends Group {
 
 		}
 
-		// Position octahedron so it extends from bone origin to child position
-		// Octahedron center is at 50% of its height, so shift it up by 50%
-		octahedron.position.copy( childLocalPos ).multiplyScalar( 0.5 );
-
-		// Attach to bone's transform
+		// Attach to bone's transform at origin
 		bone.add( octahedron );
 
 		return octahedron;
@@ -229,21 +328,26 @@ export class OctahedralBoneHelper extends Group {
 	}
 
 	/**
-	 * Create joint sphere at bone position
+	 * Create joint spheres at bone head and tail (Blender style)
+	 * FIXED: Proper sphere scaling based on template radius
 	 * @private
 	 */
-	_createJointSphere( bone ) {
+	_createJointSphere( bone, childBone ) {
+
+		if ( ! this.sphereTemplate ) {
+
+			console.warn( 'OctahedralBoneHelper: Sphere template not loaded yet' );
+			return null;
+
+		}
 
 		// Joint sphere colored by joint TYPE (red=knee, blue=hip, etc.)
 		const jointType = this._detectJointType( bone );
 		const color = this._getColorForJointType( jointType );
 
-		// Get child bone to calculate proper size
-		const childBone = this._findChildBone( bone );
-
 		if ( ! childBone ) {
 
-			// End effector - small sphere
+			// End effector - single sphere at bone head
 			const radius = 0.005;
 			const geometry = new SphereGeometry( radius, 16, 16 );
 			const material = new MeshPhongMaterial( {
@@ -260,12 +364,8 @@ export class OctahedralBoneHelper extends Group {
 
 		}
 
-		// Calculate size relative to bone base width (10% of bone length)
 		const boneLength = childBone.position.length();
-		const baseWidth = boneLength * 0.10;
-		const radius = baseWidth * 0.85;  // 85% of base width (10-15% smaller as you said!)
 
-		const geometry = new SphereGeometry( radius, 16, 16 );
 		const material = new MeshPhongMaterial( {
 			color: color,
 			shininess: 30,
@@ -276,42 +376,133 @@ export class OctahedralBoneHelper extends Group {
 			side: 2
 		} );
 
-		const sphere = new Mesh( geometry, material );
-		sphere.renderOrder = 999;
+		// FIX: Proper sphere scaling
+		// We want sphere radius = 15% of bone length
+		// Template sphere has radius = sphereTemplateRadius
+		// So scale = desiredRadius / templateRadius
+		const desiredRadius = boneLength * 0.15; // 15% of bone length
+		const sphereScale = desiredRadius / this.options.sphereTemplateRadius;
 
-		// Position sphere at TOP of short tetrahedron (20% up from base)
-		const shortHeight = boneLength * 0.20;
-		sphere.position.set( 0, shortHeight, 0 );
+		// HEAD SPHERE (at bone origin - where it connects to parent)
+		// Only create head sphere for first child to avoid duplicates
+		const allChildren = this._findAllChildBones( bone );
+		const isFirstChild = allChildren.indexOf( childBone ) === 0;
 
-		// Attach to bone
-		bone.add( sphere );
+		if ( isFirstChild ) {
 
-		return sphere;
+			const headSphere = new Mesh( this.sphereTemplate.clone(), material );
+			headSphere.renderOrder = 999;
+			headSphere.scale.set( sphereScale, sphereScale, sphereScale );
+			headSphere.position.set( 0, 0, 0 ); // At bone head
+			bone.add( headSphere );
+
+		}
+
+		// TAIL SPHERE (at child position - where child bone will connect)
+		const tailSphere = new Mesh( this.sphereTemplate.clone(), material );
+		tailSphere.renderOrder = 999;
+		tailSphere.scale.set( sphereScale, sphereScale, sphereScale );
+		tailSphere.position.copy( childBone.position ); // At bone tail
+		bone.add( tailSphere );
+
+		// Return tail sphere for tracking
+		return tailSphere;
 
 	}
 
 	/**
-	 * Create small sphere for end effectors (hands, feet, head)
+	 * Create visualization for end effectors (hands, feet, fingertips)
+	 * Creates a small directional bone extending from parent
 	 * @private
 	 */
 	_createEndEffectorSphere( bone ) {
 
-		const geometry = new SphereGeometry( 0.04, 12, 12 );
-		const material = new MeshBasicMaterial( {
-			color: this.options.jointColor,
-			transparent: true,
-			opacity: 0.6
+		if ( ! this.boneTemplate || ! this.sphereTemplate ) {
+
+			// Fallback to simple sphere if templates not loaded
+			const geometry = new SphereGeometry( 0.04, 12, 12 );
+			const material = new MeshBasicMaterial( {
+				color: this.options.jointColor,
+				transparent: true,
+				opacity: 0.6
+			} );
+			const sphere = new Mesh( geometry, material );
+			bone.add( sphere );
+			return sphere;
+
+		}
+
+		// Determine color by joint type
+		const jointType = this._detectJointType( bone );
+		const color = this._getColorForJointType( jointType );
+
+		// Estimate end effector length (10% of parent bone length, or default 0.1)
+		let endEffectorLength = 0.1; // Default for heads, etc.
+
+		if ( bone.parent && bone.parent.isBone ) {
+
+			// Find our position relative to parent
+			const ourLength = bone.position.length();
+			endEffectorLength = ourLength * 0.3; // 30% of parent bone length
+
+		}
+
+		// Create small octahedral bone extending from this bone
+		const geometry = this.boneTemplate.clone();
+		const material = new MeshPhongMaterial( {
+			color: color,
+			shininess: 30,
+			specular: 0x222222,
+			flatShading: true,
+			transparent: false,
+			depthTest: false,
+			depthWrite: false,
+			side: 2
 		} );
 
-		const sphere = new Mesh( geometry, material );
-		bone.add( sphere );
+		const scaleFactor = endEffectorLength / this.options.octahedronTipDistance;
+		const octahedron = new Mesh( geometry, material );
+		octahedron.renderOrder = 999;
+		octahedron.scale.set( scaleFactor, scaleFactor, scaleFactor );
+		bone.add( octahedron );
 
-		return sphere;
+		// Add sphere at base
+		const desiredRadius = endEffectorLength * 0.15;
+		const sphereScale = desiredRadius / this.options.sphereTemplateRadius;
+		const headSphere = new Mesh( this.sphereTemplate.clone(), material );
+		headSphere.renderOrder = 999;
+		headSphere.scale.set( sphereScale, sphereScale, sphereScale );
+		headSphere.position.set( 0, 0, 0 );
+		bone.add( headSphere );
+
+		return octahedron;
 
 	}
 
 	/**
-	 * Find first child bone
+	 * Find ALL child bones (handles multi-child cases like pelvis)
+	 * @private
+	 */
+	_findAllChildBones( bone ) {
+
+		const children = [];
+
+		for ( const child of bone.children ) {
+
+			if ( child.isBone ) {
+
+				children.push( child );
+
+			}
+
+		}
+
+		return children;
+
+	}
+
+	/**
+	 * Find first child bone (legacy - kept for compatibility)
 	 * @private
 	 */
 	_findChildBone( bone ) {

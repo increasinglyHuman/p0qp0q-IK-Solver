@@ -163,10 +163,10 @@
         let wireHelper = null;
         let autoRotate = false;
 
-        // Load model (use working Meshy model from Animator)
+        // Load model (use local Meshy model)
         const loader = new GLTFLoader();
         loader.load(
-            '../../blackBoxIKAnimator/public/models/NewestModels/Meshy_Merged_Animations(18).glb',
+            '../models/Meshy_Merged_Animations(21).glb',
             (gltf) => {
                 console.log('✅ Model loaded');
 
@@ -244,7 +244,7 @@
                 skinnedMesh.parent.rotation.y += 0.005;
             }
 
-            if (wireHelper) wireHelper.update();
+            if (wireHelper && wireHelper.update) wireHelper.update();
 
             renderer.render(scene, camera);
         }
