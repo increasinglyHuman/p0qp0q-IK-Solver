@@ -18,7 +18,7 @@ import {
 	BoneAxisDetector,
 	ConstraintHelper,
 	BiomechanicalData
-} from '../../p0qp0q-animation-utils/src/index.js';
+} from '@p0qp0q/animation-utils';
 
 /**
  * AutoConstraintBuilder - Automatic IK configuration

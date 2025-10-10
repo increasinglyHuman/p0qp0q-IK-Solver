@@ -60,14 +60,39 @@ Professional bone display system:
 
 ## Installation
 
+### For NPM Users
+
 ```bash
-npm install p0qp0q-ik-solver
+npm install p0qp0q-ik-solver @p0qp0q/animation-utils
 ```
 
-Or use directly:
-```javascript
-import { P0qP0qIKSolver } from './p0qp0q-IK-Solver.js';
+### For Browser/ES Modules
+
+Use import maps in your HTML:
+
+```html
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "@p0qp0q/animation-utils": "https://unpkg.com/@p0qp0q/animation-utils/src/index.js",
+    "p0qp0q-ik-solver": "./p0qp0q-IK-Solver.js"
+  }
+}
+</script>
 ```
+
+### For Local Development
+
+If you're developing both packages simultaneously:
+
+```bash
+# In p0qp0q-IK-Solver directory
+mkdir -p node_modules/@p0qp0q
+ln -sf ../../../p0qp0q-animation-utils node_modules/@p0qp0q/animation-utils
+```
+
+This creates a local symlink so imports work during development.
 
 ## Usage
 

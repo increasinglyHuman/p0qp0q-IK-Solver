@@ -23,5 +23,8 @@
   },
   "peerDependencies": {
     "three": ">=0.160.0"
+  },
+  "dependencies": {
+    "@p0qp0q/animation-utils": "^0.1.0"
   }
 }
