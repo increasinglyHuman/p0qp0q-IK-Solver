@@ -311,12 +311,26 @@ export class OctahedralBoneHelper extends Group {
 		const targetDir = boneDirection.clone();
 		const currentDir = new Vector3( 0, 1, 0 );
 
+		// Debug logging
+		console.log( `Creating bone for ${bone.name}:` );
+		console.log( `  Child position (local): (${childLocalPos.x.toFixed( 3 )}, ${childLocalPos.y.toFixed( 3 )}, ${childLocalPos.z.toFixed( 3 )})` );
+		console.log( `  Bone length: ${boneLength.toFixed( 3 )}` );
+		console.log( `  Target direction: (${targetDir.x.toFixed( 3 )}, ${targetDir.y.toFixed( 3 )}, ${targetDir.z.toFixed( 3 )})` );
+
 		const rotationAxis = new Vector3().crossVectors( currentDir, targetDir ).normalize();
 		const rotationAngle = currentDir.angleTo( targetDir );
+
+		console.log( `  Rotation axis: (${rotationAxis.x.toFixed( 3 )}, ${rotationAxis.y.toFixed( 3 )}, ${rotationAxis.z.toFixed( 3 )})` );
+		console.log( `  Rotation angle: ${( rotationAngle * 180 / Math.PI ).toFixed( 1 )}°` );
 
 		if ( rotationAxis.length() > 0.001 ) {
 
 			octahedron.quaternion.setFromAxisAngle( rotationAxis, rotationAngle );
+			console.log( `  Quaternion set: (${octahedron.quaternion.x.toFixed( 3 )}, ${octahedron.quaternion.y.toFixed( 3 )}, ${octahedron.quaternion.z.toFixed( 3 )}, ${octahedron.quaternion.w.toFixed( 3 )})` );
+
+		} else {
+
+			console.log( `  No rotation needed (already aligned to +Y)` );
 
 		}
 

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Debug Bone Orientation - p0qp0q IK Solver</title>
+    <style>
+        body { margin: 0; background: #0a0a0a; color: #0f0; font-family: monospace; }
+        #info {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.9);
+            padding: 20px;
+            border: 2px solid #0f0;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            font-size: 11px;
+            z-index: 1000;
+        }
+        #controls {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.9);
+            padding: 20px;
+            border: 2px solid #0f0;
+            z-index: 1000;
+        }
+        button {
+            display: block;
+            width: 200px;
+            padding: 10px;
+            margin: 5px 0;
+            background: #000;
+            color: #0f0;
+            border: 1px solid #0f0;
+            cursor: pointer;
+            font-family: monospace;
+        }
+        button:hover { background: #0f0; color: #000; }
+        h3 { margin: 0 0 10px 0; color: #ff0; }
+        .error { color: #f00; }
+        .success { color: #0f0; }
+        .warning { color: #ff0; }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h3>🦴 Bone Orientation Debug</h3>
+        <div id="log">Open console (F12) to see detailed bone creation logs...</div>
+    </div>
+    <div id="controls">
+        <h3>Test Models:</h3>
+        <button onclick="loadModel('../models/meshy-character.glb')">Meshy Humanoid</button>
+        <button onclick="testSimple()">Simple Test Rig</button>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { OctahedralBoneHelper } from '../src/OctahedralBoneHelper.js';
+
+        let scene, camera, renderer, controls;
+        let boneHelper = null;
+
+        init();
+        animate();
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0a);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 1000);
+            camera.position.set(2, 1.5, 3);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+
+            // Lights
+            const ambient = new THREE.AmbientLight(0x404040, 3);
+            scene.add(ambient);
+
+            const directional = new THREE.DirectionalLight(0xffffff, 2);
+            directional.position.set(5, 10, 7);
+            scene.add(directional);
+
+            // Grid
+            const grid = new THREE.GridHelper(5, 10, 0x222222, 0x111111);
+            scene.add(grid);
+
+            // Axes helper
+            const axes = new THREE.AxesHelper(1);
+            scene.add(axes);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.loadModel = function(path) {
+            console.log('Loading model:', path);
+            updateLog('Loading ' + path + '...');
+
+            if (boneHelper) {
+                scene.remove(boneHelper);
+                boneHelper.dispose();
+            }
+
+            const loader = new GLTFLoader();
+            loader.load(
+                path,
+                (gltf) => {
+                    console.log('Model loaded successfully');
+                    
+                    let skinnedMesh = null;
+                    gltf.scene.traverse((child) => {
+                        if (child.isSkinnedMesh && child.skeleton) {
+                            skinnedMesh = child;
+                        }
+                    });
+
+                    if (!skinnedMesh) {
+                        updateLog('<span class="error">No skeleton found!</span>');
+                        return;
+                    }
+
+                    scene.add(gltf.scene);
+
+                    // Center model
+                    const box = new THREE.Box3().setFromObject(gltf.scene);
+                    const center = box.getCenter(new THREE.Vector3());
+                    gltf.scene.position.sub(center);
+
+                    console.log('Creating OctahedralBoneHelper...');
+                    console.log('═══════════════════════════════════════');
+                    
+                    boneHelper = new OctahedralBoneHelper(skinnedMesh, {
+                        modelPath: '../models/octahedralBoneZup.glb'
+                    });
+                    scene.add(boneHelper);
+
+                    console.log('═══════════════════════════════════════');
+                    console.log('OctahedralBoneHelper created. Check logs above for each bone.');
+
+                    updateLog(`<span class="success">✓ Loaded ${skinnedMesh.skeleton.bones.length} bones</span><br>Check console (F12) for detailed bone orientation logs!`);
+
+                    camera.position.set(2, 1.5, 3);
+                    controls.target.set(0, 0.5, 0);
+                },
+                undefined,
+                (error) => {
+                    console.error('Error loading model:', error);
+                    updateLog('<span class="error">Error: ' + error.message + '</span>');
+                }
+            );
+        };
+
+        window.testSimple = function() {
+            console.log('Creating simple test rig...');
+            console.log('═══════════════════════════════════════');
+
+            // Create a simple 3-bone chain
+            const root = new THREE.Bone();
+            root.name = 'Root';
+            root.position.set(0, 0, 0);
+
+            const bone1 = new THREE.Bone();
+            bone1.name = 'Bone1';
+            bone1.position.set(0, 0.5, 0); // Straight up
+            root.add(bone1);
+
+            const bone2 = new THREE.Bone();
+            bone2.name = 'Bone2';
+            bone2.position.set(0.3, 0.4, 0); // Angled
+            bone1.add(bone2);
+
+            const bone3 = new THREE.Bone();
+            bone3.name = 'Bone3';
+            bone3.position.set(0, 0.3, 0.2); // Another angle
+            bone2.add(bone3);
+
+            const bones = [root, bone1, bone2, bone3];
+            const skeleton = new THREE.Skeleton(bones);
+
+            // Create a simple mesh
+            const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+            const material = new THREE.MeshPhongMaterial({ 
+                color: 0x888888,
+                skinning: true 
+            });
+            const mesh = new THREE.SkinnedMesh(geometry, material);
+            mesh.add(root);
+            mesh.bind(skeleton);
+
+            scene.add(mesh);
+
+            console.log('Creating OctahedralBoneHelper for test rig...');
+            
+            if (boneHelper) {
+                scene.remove(boneHelper);
+                boneHelper.dispose();
+            }
+
+            boneHelper = new OctahedralBoneHelper(mesh, {
+                modelPath: '../models/octahedralBoneZup.glb'
+            });
+            scene.add(boneHelper);
+
+            console.log('═══════════════════════════════════════');
+            
+            updateLog('<span class="success">✓ Simple test rig created</span><br>Check console for bone orientation details!');
+
+            camera.position.set(1.5, 1, 2);
+            controls.target.set(0, 0.5, 0);
+        };
+
+        function updateLog(html) {
+            document.getElementById('log').innerHTML = html;
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
