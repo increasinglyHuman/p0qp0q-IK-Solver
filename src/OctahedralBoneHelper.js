@@ -307,44 +307,22 @@ export class OctahedralBoneHelper extends Group {
 		octahedron.scale.set( scaleFactor, scaleFactor, scaleFactor );
 
 		// Rotate octahedron to point toward child bone
-		// Template TIP points -Y (down toward child), not +Y!
-		// The octahedron is built with tip at -Y and sphere at +Y
-		const targetDir = boneDirection.clone();
-		const currentDir = new Vector3( 0, -1, 0 ); // TIP points DOWN!
+		// Use Three.js setFromUnitVectors() - handles all edge cases automatically!
+		// Template tip points -Y, rotate to point at child direction
 
 		// Debug logging
-		console.log( `Creating bone for ${bone.name}:` );
+		console.log( `Creating bone for ${bone.name} → ${childBone.name}:` );
 		console.log( `  Child position (local): (${childLocalPos.x.toFixed( 3 )}, ${childLocalPos.y.toFixed( 3 )}, ${childLocalPos.z.toFixed( 3 )})` );
 		console.log( `  Bone length: ${boneLength.toFixed( 3 )}` );
-		console.log( `  Target direction: (${targetDir.x.toFixed( 3 )}, ${targetDir.y.toFixed( 3 )}, ${targetDir.z.toFixed( 3 )})` );
+		console.log( `  Direction to child: (${boneDirection.x.toFixed( 3 )}, ${boneDirection.y.toFixed( 3 )}, ${boneDirection.z.toFixed( 3 )})` );
 
-		const rotationAngle = currentDir.angleTo( targetDir );
-		console.log( `  Rotation angle: ${( rotationAngle * 180 / Math.PI ).toFixed( 1 )}°` );
+		// Let Three.js handle the rotation math (handles 0°, 90°, 180°, everything!)
+		octahedron.quaternion.setFromUnitVectors(
+			new Vector3( 0, -1, 0 ),  // Template tip points -Y (down)
+			boneDirection              // Want to point at child
+		);
 
-		// Handle special cases
-		if ( rotationAngle < 0.001 ) {
-
-			// Already aligned to -Y (pointing down to child)
-			console.log( `  Already aligned - no rotation needed` );
-
-		} else if ( Math.abs( rotationAngle - Math.PI ) < 0.001 ) {
-
-			// 180° opposite - need to flip (child is at +Y when template points -Y)
-			// Use X-axis as arbitrary rotation axis
-			console.log( `  180° flip needed - using X-axis rotation` );
-			octahedron.quaternion.setFromAxisAngle( new Vector3( 1, 0, 0 ), Math.PI );
-			console.log( `  Quaternion set: (${octahedron.quaternion.x.toFixed( 3 )}, ${octahedron.quaternion.y.toFixed( 3 )}, ${octahedron.quaternion.z.toFixed( 3 )}, ${octahedron.quaternion.w.toFixed( 3 )})` );
-
-		} else {
-
-			// Normal case - calculate rotation axis
-			const rotationAxis = new Vector3().crossVectors( currentDir, targetDir ).normalize();
-			console.log( `  Rotation axis: (${rotationAxis.x.toFixed( 3 )}, ${rotationAxis.y.toFixed( 3 )}, ${rotationAxis.z.toFixed( 3 )})` );
-
-			octahedron.quaternion.setFromAxisAngle( rotationAxis, rotationAngle );
-			console.log( `  Quaternion set: (${octahedron.quaternion.x.toFixed( 3 )}, ${octahedron.quaternion.y.toFixed( 3 )}, ${octahedron.quaternion.z.toFixed( 3 )}, ${octahedron.quaternion.w.toFixed( 3 )})` );
-
-		}
+		console.log( `  Quaternion: (${octahedron.quaternion.x.toFixed( 3 )}, ${octahedron.quaternion.y.toFixed( 3 )}, ${octahedron.quaternion.z.toFixed( 3 )}, ${octahedron.quaternion.w.toFixed( 3 )})` );
 
 		// Attach to bone's transform at origin
 		bone.add( octahedron );
