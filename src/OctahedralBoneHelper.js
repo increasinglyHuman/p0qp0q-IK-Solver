@@ -307,9 +307,10 @@ export class OctahedralBoneHelper extends Group {
 		octahedron.scale.set( scaleFactor, scaleFactor, scaleFactor );
 
 		// Rotate octahedron to point toward child bone
-		// Template is aligned to +Y axis from Blender
+		// Template TIP points -Y (down toward child), not +Y!
+		// The octahedron is built with tip at -Y and sphere at +Y
 		const targetDir = boneDirection.clone();
-		const currentDir = new Vector3( 0, 1, 0 );
+		const currentDir = new Vector3( 0, -1, 0 ); // TIP points DOWN!
 
 		// Debug logging
 		console.log( `Creating bone for ${bone.name}:` );
