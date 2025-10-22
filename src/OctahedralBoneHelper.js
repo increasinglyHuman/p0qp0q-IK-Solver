@@ -318,20 +318,31 @@ export class OctahedralBoneHelper extends Group {
 		console.log( `  Bone length: ${boneLength.toFixed( 3 )}` );
 		console.log( `  Target direction: (${targetDir.x.toFixed( 3 )}, ${targetDir.y.toFixed( 3 )}, ${targetDir.z.toFixed( 3 )})` );
 
-		const rotationAxis = new Vector3().crossVectors( currentDir, targetDir ).normalize();
 		const rotationAngle = currentDir.angleTo( targetDir );
-
-		console.log( `  Rotation axis: (${rotationAxis.x.toFixed( 3 )}, ${rotationAxis.y.toFixed( 3 )}, ${rotationAxis.z.toFixed( 3 )})` );
 		console.log( `  Rotation angle: ${( rotationAngle * 180 / Math.PI ).toFixed( 1 )}°` );
 
-		if ( rotationAxis.length() > 0.001 ) {
+		// Handle special cases
+		if ( rotationAngle < 0.001 ) {
 
-			octahedron.quaternion.setFromAxisAngle( rotationAxis, rotationAngle );
+			// Already aligned to -Y (pointing down to child)
+			console.log( `  Already aligned - no rotation needed` );
+
+		} else if ( Math.abs( rotationAngle - Math.PI ) < 0.001 ) {
+
+			// 180° opposite - need to flip (child is at +Y when template points -Y)
+			// Use X-axis as arbitrary rotation axis
+			console.log( `  180° flip needed - using X-axis rotation` );
+			octahedron.quaternion.setFromAxisAngle( new Vector3( 1, 0, 0 ), Math.PI );
 			console.log( `  Quaternion set: (${octahedron.quaternion.x.toFixed( 3 )}, ${octahedron.quaternion.y.toFixed( 3 )}, ${octahedron.quaternion.z.toFixed( 3 )}, ${octahedron.quaternion.w.toFixed( 3 )})` );
 
 		} else {
 
-			console.log( `  No rotation needed (already aligned to +Y)` );
+			// Normal case - calculate rotation axis
+			const rotationAxis = new Vector3().crossVectors( currentDir, targetDir ).normalize();
+			console.log( `  Rotation axis: (${rotationAxis.x.toFixed( 3 )}, ${rotationAxis.y.toFixed( 3 )}, ${rotationAxis.z.toFixed( 3 )})` );
+
+			octahedron.quaternion.setFromAxisAngle( rotationAxis, rotationAngle );
+			console.log( `  Quaternion set: (${octahedron.quaternion.x.toFixed( 3 )}, ${octahedron.quaternion.y.toFixed( 3 )}, ${octahedron.quaternion.z.toFixed( 3 )}, ${octahedron.quaternion.w.toFixed( 3 )})` );
 
 		}
 
