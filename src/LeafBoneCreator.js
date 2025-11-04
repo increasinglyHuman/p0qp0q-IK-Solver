@@ -284,6 +284,20 @@ export class LeafBoneCreator {
 						rotationMax: new Vector3( Math.PI, Math.PI, Math.PI )
 					} );
 
+					if ( this.options.logCreation ) {
+
+						console.log( `    ➕ Added ${currentEffector.name} to chain links (provides rotation control)` );
+
+					}
+
+				} else {
+
+					if ( this.options.logCreation ) {
+
+						console.log( `    ℹ️  ${currentEffector.name} already in links` );
+
+					}
+
 				}
 
 				// Update effector to leaf
