@@ -111,15 +111,24 @@ class P0qP0qIKSolver {
 	 * Updates all IK bones by solving the CCD algorithm.
 	 *
 	 * @param {number} [globalBlendFactor=1.0] - Blend factor applied if an IK chain doesn't have its own .blendFactor.
+	 * @param {Array<Quaternion>} [orientationTargets=null] - Optional target orientations for end effectors (6-DOF control)
 	 * @return {CCDIKSolver} A reference to this instance.
 	 */
-	update( globalBlendFactor = 1.0 ) {
+	update( globalBlendFactor = 1.0, orientationTargets = null ) {
 
 		const iks = this.iks;
 
+		// Pass 1: Solve position (standard CCD)
 		for ( let i = 0, il = iks.length; i < il; i ++ ) {
 
 			this.updateOne( iks[ i ], globalBlendFactor );
+
+		}
+
+		// Pass 2: Match orientation targets (NEW - optional 6-DOF control)
+		if ( orientationTargets && orientationTargets.length > 0 ) {
+
+			this._matchEffectorOrientations( orientationTargets );
 
 		}
 
@@ -513,6 +522,85 @@ class P0qP0qIKSolver {
 			swingAxis.z * sinHalf,
 			math.cos( clampedHalfAngle )
 		);
+
+	}
+
+	/**
+	 * Match end effector orientations to target quaternions
+	 * Provides 6-DOF control (position from CCD + orientation from this)
+	 *
+	 * @param {Array<Quaternion>} orientationTargets - Target quaternions for each IK chain
+	 * @private
+	 */
+	_matchEffectorOrientations( orientationTargets ) {
+
+		const iks = this.iks;
+		const bones = this.mesh.skeleton.bones;
+
+		for ( let i = 0, il = iks.length; i < il; i ++ ) {
+
+			const ik = iks[ i ];
+			const targetQuat = orientationTargets[ i ];
+
+			if ( ! targetQuat ) continue;  // No orientation target for this chain
+
+			this._matchOneEffectorOrientation( ik, targetQuat, bones );
+
+		}
+
+	}
+
+	/**
+	 * Match single end effector orientation by distributing rotation across chain
+	 *
+	 * @param {Object} ik - The IK chain configuration
+	 * @param {Quaternion} targetQuat - Target orientation (world space)
+	 * @param {Array<Bone>} bones - Skeleton bones array
+	 * @private
+	 */
+	_matchOneEffectorOrientation( ik, targetQuat, bones ) {
+
+		const effector = bones[ ik.effector ];
+
+		if ( ! effector ) return;
+
+		// Get current effector orientation (world space)
+		const currentQuat = new Quaternion();
+		effector.getWorldQuaternion( currentQuat );
+
+		// Calculate rotation needed to match target
+		const rotationNeeded = currentQuat.clone().invert().multiply( targetQuat );
+
+		// Check if rotation is significant
+		const angle = 2 * Math.acos( Math.abs( rotationNeeded.w ) );
+		if ( angle < 0.001 ) return;  // Already aligned
+
+		// Distribute rotation across last 2-3 joints in chain
+		// This prevents concentrating all rotation in one joint
+		const affectedCount = Math.min( 3, ik.links.length );
+		const affectedLinks = ik.links.slice( - affectedCount );
+
+		// Calculate per-joint rotation (fractional slerp)
+		const rotationPerJoint = new Quaternion();
+		const t = 1.0 / affectedCount;  // Equal distribution
+		rotationPerJoint.slerp( rotationNeeded, t );
+
+		// Apply to each affected joint
+		affectedLinks.forEach( link => {
+
+			const bone = bones[ link.index ];
+
+			if ( bone ) {
+
+				// Apply rotation in local space
+				bone.quaternion.multiply( rotationPerJoint );
+
+				// If joint has constraints, they'll be enforced on next CCD pass
+				// This is a "hint" to the solver, not a hard override
+
+			}
+
+		} );
 
 	}
 
