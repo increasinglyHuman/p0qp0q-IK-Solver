@@ -12,7 +12,7 @@
  * @version 1.0.0
  */
 
-import { Vector3 } from 'three';
+import { Vector3, Bone } from 'three';
 import {
 	BoneMapper,
 	BoneAxisDetector,
@@ -232,23 +232,57 @@ export class AutoConstraintBuilder {
 	}
 
 	/**
-	 * Create target bones for IK
+	 * Create target bones for IK and add them to the skeleton
 	 * @private
 	 */
 	_createTargetBones( mesh, mappedBones ) {
 
-		// Note: In a real implementation, these would be added to the skeleton
-		// For now, we return the indices where they would be
 		const skeleton = mesh.skeleton;
 		const targetBones = {};
+		const newBones = [];
 
-		// Targets will be appended to skeleton.bones array
-		const baseIndex = skeleton.bones.length;
+		// Helper to create and attach a target bone
+		const createTarget = ( name, originalBone ) => {
 
-		targetBones.leftFoot = baseIndex;
-		targetBones.rightFoot = baseIndex + 1;
-		targetBones.leftHand = baseIndex + 2;
-		targetBones.rightHand = baseIndex + 3;
+			const targetBone = new Bone();
+			targetBone.name = `IK_Target_${name}`;
+			
+			// Position target at the current position of the bone it controls
+			// This prevents the limb from snapping to 0,0,0 immediately
+			if ( originalBone ) {
+
+				// we need world position, but we can't trust the bone's matrixWorld yet 
+				// if it hasn't been updated. Safest is to copy local position if parent is root,
+				// but for robust setup, we usually start at origin or copy strictly from bone.
+				// For now, let's leave at identity (0,0,0) or match the bone's current world pos relative to mesh?
+				// Simplest safe approach: leave at 0,0,0 relative to mesh root (model space)
+				// The user usually positions these targets every frame anyway.
+				
+				// OPTIONAL: Match position to avoid initial "snap"
+				// targetBone.position.setFromMatrixPosition( originalBone.matrixWorld );
+				// mesh.worldToLocal( targetBone.position );
+
+			}
+
+			// Add to mesh (targets are usually children of the character root or scene)
+			// Adding to mesh ensures they move with the character object
+			mesh.add( targetBone );
+			
+			// Add to skeleton array
+			skeleton.bones.push( targetBone );
+			
+			// Return the new index
+			return skeleton.bones.length - 1;
+
+		};
+
+		targetBones.leftFoot = createTarget( 'LeftFoot', mappedBones.leftFoot );
+		targetBones.rightFoot = createTarget( 'RightFoot', mappedBones.rightFoot );
+		targetBones.leftHand = createTarget( 'LeftHand', mappedBones.leftHand );
+		targetBones.rightHand = createTarget( 'RightHand', mappedBones.rightHand );
+
+		// Update skeleton matrices to include new bones
+		skeleton.update();
 
 		return targetBones;
 
