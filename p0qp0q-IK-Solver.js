@@ -54,6 +54,15 @@ const _twistAxis = new Vector3();
 const _rotationAxis = new Vector3();
 const _projection = new Vector3();
 
+// Object pools to reduce GC
+const _poolTwistVec = new Vector3();
+const _poolSwingAxis = new Vector3();
+const _clampedSwing = new Quaternion();
+const _clampedTwist = new Quaternion();
+const _workingQuat1 = new Quaternion();
+const _workingQuat2 = new Quaternion();
+const _workingQuat3 = new Quaternion();
+
 /**
  * Enhanced IK solver with swing-twist constraints and multi-axis bone support.
  *
@@ -472,21 +481,21 @@ class P0qP0qIKSolver {
 	_clampTwist( twist, twistAxis, minAngle, maxAngle ) {
 
 		// Extract signed angle around twist axis
-		const twistVec = new Vector3( twist.x, twist.y, twist.z );
-		const angle = 2 * math.atan2( twistVec.dot( twistAxis ), twist.w );
+		_poolTwistVec.set( twist.x, twist.y, twist.z );
+		const angle = 2 * Math.atan2( _poolTwistVec.dot( twistAxis ), twist.w );
 
 		// Clamp to limits
-		const clampedAngle = math.max( minAngle, math.min( maxAngle, angle ) );
+		const clampedAngle = Math.max( minAngle, Math.min( maxAngle, angle ) );
 
 		// Rebuild twist quaternion from clamped angle
 		const halfAngle = clampedAngle / 2;
-		const sinHalf = math.sin( halfAngle );
+		const sinHalf = Math.sin( halfAngle );
 
-		return new Quaternion(
+		return _clampedTwist.set(
 			twistAxis.x * sinHalf,
 			twistAxis.y * sinHalf,
 			twistAxis.z * sinHalf,
-			math.cos( halfAngle )
+			Math.cos( halfAngle )
 		);
 
 	}
@@ -501,26 +510,26 @@ class P0qP0qIKSolver {
 	_clampSwing( swing, maxRadius ) {
 
 		// Extract swing axis and angle
-		const swingAxis = new Vector3( swing.x, swing.y, swing.z );
-		const swingAngle = 2 * math.atan2( swingAxis.length(), swing.w );
+		_poolSwingAxis.set( swing.x, swing.y, swing.z );
+		const swingAngle = 2 * Math.atan2( _poolSwingAxis.length(), swing.w );
 
 		// If within limits, return unchanged
 		if ( swingAngle <= maxRadius ) {
 
-			return swing.clone();
+			return _clampedSwing.copy( swing );
 
 		}
 
 		// Clamp to max radius
-		swingAxis.normalize();
+		_poolSwingAxis.normalize();
 		const clampedHalfAngle = maxRadius / 2;
-		const sinHalf = math.sin( clampedHalfAngle );
+		const sinHalf = Math.sin( clampedHalfAngle );
 
-		return new Quaternion(
-			swingAxis.x * sinHalf,
-			swingAxis.y * sinHalf,
-			swingAxis.z * sinHalf,
-			math.cos( clampedHalfAngle )
+		return _clampedSwing.set(
+			_poolSwingAxis.x * sinHalf,
+			_poolSwingAxis.y * sinHalf,
+			_poolSwingAxis.z * sinHalf,
+			Math.cos( clampedHalfAngle )
 		);
 
 	}
@@ -565,14 +574,13 @@ class P0qP0qIKSolver {
 		if ( ! effector ) return;
 
 		// Get current effector orientation (world space)
-		const currentQuat = new Quaternion();
-		effector.getWorldQuaternion( currentQuat );
+		effector.getWorldQuaternion( _workingQuat1 );
 
 		// Calculate rotation needed to match target
-		const rotationNeeded = currentQuat.clone().invert().multiply( targetQuat );
+		_workingQuat2.copy( _workingQuat1 ).invert().multiply( targetQuat );
 
 		// Check if rotation is significant
-		const angle = 2 * Math.acos( Math.abs( rotationNeeded.w ) );
+		const angle = 2 * Math.acos( Math.abs( _workingQuat2.w ) );
 		if ( angle < 0.001 ) return;  // Already aligned
 
 		// Distribute rotation across last 2-3 joints in chain
@@ -581,9 +589,8 @@ class P0qP0qIKSolver {
 		const affectedLinks = ik.links.slice( - affectedCount );
 
 		// Calculate per-joint rotation (fractional slerp)
-		const rotationPerJoint = new Quaternion();
 		const t = 1.0 / affectedCount;  // Equal distribution
-		rotationPerJoint.slerp( rotationNeeded, t );
+		_workingQuat3.set( 0, 0, 0, 1 ).slerp( _workingQuat2, t );
 
 		// Apply to each affected joint
 		affectedLinks.forEach( link => {
@@ -593,7 +600,7 @@ class P0qP0qIKSolver {
 			if ( bone ) {
 
 				// Apply rotation in local space
-				bone.quaternion.multiply( rotationPerJoint );
+				bone.quaternion.multiply( _workingQuat3 );
 
 				// If joint has constraints, they'll be enforced on next CCD pass
 				// This is a "hint" to the solver, not a hard override
