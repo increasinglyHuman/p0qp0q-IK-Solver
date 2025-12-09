@@ -3,3 +3,16 @@ dist/
 .DS_Store
 *.log
 .vscode/
+
+# Models (Large binary files)
+*.glb
+*.fbx
+*.blend
+*.png
+*.jpg
+*.jpeg
+
+# Exceptions - Keep core assets required for the solver/viz
+!models/octahedralBone.glb
+!models/octahedralBoneZup.glb
+!models/octahedralBoneYupModelsRotatedAndNormalized.glb
